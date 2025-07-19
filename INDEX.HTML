@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Advanced Day Planner</title>
+<style>
+  :root {
+    --primary: #007bff;
+    --save-green: #28a745;
+    --red: #dc3545;
+    --gray-light: #d3d3d3;
+    --red-light: #ff6961;
+    --green-light: #77dd77;
+    --text-dark: #333;
+    --text-light: #eee;
+    --bg-light: #f0f2f5;
+    --bg-dark: #121212;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 20px;
+    background: var(--bg-light);
+    color: var(--text-dark);
+    transition: background-color 0.3s, color 0.3s;
+  }
+  body.dark {
+    background: var(--bg-dark);
+    color: var(--text-light);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 5px;
+  }
+  #currentDate {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+  }
+  .planner {
+    max-width: 700px;
+    margin: 0 auto 20px auto;
+  }
+  .time-block {
+    display: flex;
+    margin-bottom: 10px;
+  }
+  .hour {
+    width: 80px;
+    background-color: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border-radius: 5px 0 0 5px;
+    flex-shrink: 0;
+  }
+  textarea {
+    flex: 1;
+    resize: none;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-left: none;
+    font-size: 1rem;
+    border-radius: 0;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  button.saveBtn {
+    background-color: var(--save-green);
+    border: none;
+    color: white;
+    padding: 0 15px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    border-radius: 0 5px 5px 0;
+    transition: background-color 0.3s;
+    flex-shrink: 0;
+  }
+  button.saveBtn:hover {
+    background-color: #218838;
+  }
+  .past textarea {
+    background-color: var(--gray-light);
+    color: #777;
+  }
+  .present textarea {
+    background-color: var(--red-light);
+    color: white;
+  }
+  .future textarea {
+    background-color: var(--green-light);
+    color: var(--text-dark);
+  }
+  body.dark .past textarea {
+    background-color: #555;
+    color: #bbb;
+  }
+  body.dark .present textarea {
+    background-color: #b34747;
+    color: #fff;
+  }
+  body.dark .future textarea {
+    background-color: #3b8b3b;
+    color: #ddd;
+  }
+  #controls {
+    max-width: 700px;
+    margin: 0 auto 30px auto;
+    text-align: center;
+  }
+  button, input[type="file"], label {
+    margin: 5px 10px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 5px;
+    border: none;
+    transition: background-color 0.3s;
+  }
+  button#clearBtn {
+    background-color: var(--red);
+    color: white;
+  }
+  button#clearBtn:hover {
+    background-color: #c82333;
+  }
+  button#exportBtn {
+    background-color: #007bff;
+    color: white;
+  }
+  button#exportBtn:hover {
+    background-color: #0056b3;
+  }
+  label[for="importFile"] {
+    background-color: #17a2b8;
+    color: white;
+    display: inline-block;
+  }
+  label[for="importFile"]:hover {
+    background-color: #117a8b;
+  }
+  input[type="file"] {
+    display: none;
+  }
+  #darkModeToggle {
+    background-color: #6c757d;
+    color: white;
+  }
+  #darkModeToggle:hover {
+    background-color: #5a6268;
+  }
+</style>
+</head>
+<body>
+  <h1>Advanced Day Planner</h1>
+  <div id="currentDate"></div>
+
+  <div id="controls">
+    <button id="clearBtn" title="Clear all saved tasks">Clear All Tasks</button>
+    <button id="exportBtn" title="Export tasks to JSON file">Export Tasks</button>
+    <label for="importFile" title="Import tasks from JSON file">Import Tasks</label>
+    <input type="file" id="importFile" accept="application/json" />
+    <button id="darkModeToggle" title="Toggle dark mode">Toggle Dark Mode</button>
+  </div>
+
+  <div class="planner" id="planner"></div>
+
+<script>
+  const planner = document.getElementById("planner");
+  const currentDateDiv = document.getElementById("currentDate");
+  const clearBtn = document.getElementById("clearBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const importFile = document.getElementById("importFile");
+  const darkModeToggle = document.getElementById("darkModeToggle");
+
+  // Work hours 9AM - 5PM
+  const workHours = [
+    { display: "9 AM", hour: 9 },
+    { display: "10 AM", hour: 10 },
+    { display: "11 AM", hour: 11 },
+    { display: "12 PM", hour: 12 },
+    { display: "1 PM", hour: 13 },
+    { display: "2 PM", hour: 14 },
+    { display: "3 PM", hour: 15 },
+    { display: "4 PM", hour: 16 },
+    { display: "5 PM", hour: 17 }
+  ];
+
+  // Show current date formatted nicely
+  function showCurrentDate() {
+    const now = new Date();
+    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+    currentDateDiv.textContent = now.toLocaleDateString(undefined, options);
+  }
+
+  // Get current hour (24h format)
+  function getCurrentHour() {
+    return new Date().getHours();
+  }
+
+  // Create one time block row
+  function createTimeBlock(timeObj) {
+    const timeBlock = document.createElement("div");
+    timeBlock.classList.add("time-block");
+
+    // Add classes based on past, present, future
+    const currentHour = getCurrentHour();
+    if (timeObj.hour < currentHour) {
+      timeBlock.classList.add("past");
+    } else if (timeObj.hour === currentHour) {
+      timeBlock.classList.add("present");
+    } else {
+      timeBlock.classList.add("future");
+    }
+
+    const hourDiv = document.createElement("div");
+    hourDiv.className = "hour";
+    hourDiv.textContent = timeObj.display;
+
+    const textArea = document.createElement("textarea");
+    textArea.rows = 2;
+    textArea.id = `task-${timeObj.hour}`;
+
+    // Load saved task if any
+    const savedTask = localStorage.getItem(`task-${timeObj.hour}`);
+    if (savedTask) {
+      textArea.value = savedTask;
+    }
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "saveBtn";
+    saveBtn.innerHTML = "💾";
+    saveBtn.title = "Save Task";
+
+    saveBtn.addEventListener("click", () => {
+      const taskText = textArea.value.trim();
+      localStorage.setItem(textArea.id, taskText);
+      saveBtn.textContent = "✅";
+      setTimeout(() => (saveBtn.innerHTML = "💾"), 1000);
+
+      // Simple reminder alert if task saved within the next hour or current hour
+      const now = new Date();
+      if (timeObj.hour >= now.getHours() && timeObj.hour <= now.getHours() + 1 && taskText) {
+        alert(`Reminder set for ${timeObj.display}: "${taskText}"`);
+      }
+    });
+
+    timeBlock.appendChild(hourDiv);
+    timeBlock.appendChild(textArea);
+    timeBlock.appendChild(saveBtn);
+
+    return timeBlock;
+  }
+
+  // Render all time blocks
+  function initPlanner() {
+    planner.innerHTML = "";
+    workHours.forEach(timeObj => {
+      planner.appendChild(createTimeBlock(timeObj));
+    });
+  }
+
+  // Clear all tasks after confirmation
+  clearBtn.addEventListener("click", () => {
+    if (confirm("Are you sure you want to clear all tasks?")) {
+      workHours.forEach(timeObj => {
+        localStorage.removeItem(`task-${timeObj.hour}`);
+      });
+      initPlanner();
+    }
+  });
+
+  // Export tasks to JSON file
+  exportBtn.addEventListener("click", () => {
+    const tasks = {};
+    workHours.forEach(timeObj => {
+      const task = localStorage.getItem(`task-${timeObj.hour}`);
+      if (task) tasks[`task-${timeObj.hour}`] = task;
+    });
+    const jsonStr = JSON.stringify(tasks, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `day-planner-tasks-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Import tasks from JSON file
+  importFile.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const importedTasks = JSON.parse(e.target.result);
+        if (typeof importedTasks === "object" && importedTasks !== null) {
+          Object.entries(importedTasks).forEach(([key, val]) => {
+            // Validate keys start with task-
+            if (key.startsWith("task-") && typeof val === "string") {
+              localStorage.setItem(key, val);
+            }
+          });
+          alert("Tasks imported successfully!");
+          initPlanner();
+        } else {
+          alert("Invalid task data!");
+        }
+      } catch {
+        alert("Failed to parse JSON file.");
+      }
+      importFile.value = ""; // reset input
+    };
+    reader.readAsText(file);
+  });
+
+  // Dark mode toggle, persist in localStorage
+  function applyDarkMode(dark) {
+    if (dark) {
+      document.body.classList.add("dark");
+      localStorage.setItem("darkMode", "true");
+    } else {
+      document.body.classList.remove("dark");
+      localStorage.setItem("darkMode", "false");
+    }
+  }
+
+  darkModeToggle.addEventListener("click", () => {
+    const dark = !document.body.classList.contains("dark");
+    applyDarkMode(dark);
+  });
+
+  // Initialize dark mode from saved setting
+  function initDarkMode() {
+    const darkPref = localStorage.getItem("darkMode");
+    if (darkPref === "true") {
+      applyDarkMode(true);
+    }
+  }
+
+  // Init everything
+  showCurrentDate();
+  initPlanner();
+  initDarkMode();
+
+  // Refresh planner colors every 15 minutes to update past/present/future classes
+  setInterval(initPlanner, 900000);
+</script>
+</body>
+</html>
