@@ -164,9 +164,7 @@
     <input type="file" id="importFile" accept="application/json" />
     <button id="darkModeToggle" title="Toggle dark mode">Toggle Dark Mode</button>
   </div>
-
   <div class="planner" id="planner"></div>
-
 <script>
   const planner = document.getElementById("planner");
   const currentDateDiv = document.getElementById("currentDate");
@@ -174,8 +172,6 @@
   const exportBtn = document.getElementById("exportBtn");
   const importFile = document.getElementById("importFile");
   const darkModeToggle = document.getElementById("darkModeToggle");
-
-  // Work hours 9AM - 5PM
   const workHours = [
     { display: "9 AM", hour: 9 },
     { display: "10 AM", hour: 10 },
@@ -187,25 +183,17 @@
     { display: "4 PM", hour: 16 },
     { display: "5 PM", hour: 17 }
   ];
-
-  // Show current date formatted nicely
   function showCurrentDate() {
     const now = new Date();
     const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
     currentDateDiv.textContent = now.toLocaleDateString(undefined, options);
   }
-
-  // Get current hour (24h format)
   function getCurrentHour() {
     return new Date().getHours();
   }
-
-  // Create one time block row
   function createTimeBlock(timeObj) {
     const timeBlock = document.createElement("div");
     timeBlock.classList.add("time-block");
-
-    // Add classes based on past, present, future
     const currentHour = getCurrentHour();
     if (timeObj.hour < currentHour) {
       timeBlock.classList.add("past");
@@ -214,55 +202,41 @@
     } else {
       timeBlock.classList.add("future");
     }
-
     const hourDiv = document.createElement("div");
     hourDiv.className = "hour";
     hourDiv.textContent = timeObj.display;
-
     const textArea = document.createElement("textarea");
     textArea.rows = 2;
     textArea.id = `task-${timeObj.hour}`;
-
-    // Load saved task if any
     const savedTask = localStorage.getItem(`task-${timeObj.hour}`);
     if (savedTask) {
       textArea.value = savedTask;
     }
-
     const saveBtn = document.createElement("button");
     saveBtn.className = "saveBtn";
     saveBtn.innerHTML = "💾";
     saveBtn.title = "Save Task";
-
     saveBtn.addEventListener("click", () => {
       const taskText = textArea.value.trim();
       localStorage.setItem(textArea.id, taskText);
       saveBtn.textContent = "✅";
       setTimeout(() => (saveBtn.innerHTML = "💾"), 1000);
-
-      // Simple reminder alert if task saved within the next hour or current hour
       const now = new Date();
       if (timeObj.hour >= now.getHours() && timeObj.hour <= now.getHours() + 1 && taskText) {
         alert(`Reminder set for ${timeObj.display}: "${taskText}"`);
       }
     });
-
     timeBlock.appendChild(hourDiv);
     timeBlock.appendChild(textArea);
     timeBlock.appendChild(saveBtn);
-
     return timeBlock;
   }
-
-  // Render all time blocks
   function initPlanner() {
     planner.innerHTML = "";
     workHours.forEach(timeObj => {
       planner.appendChild(createTimeBlock(timeObj));
     });
   }
-
-  // Clear all tasks after confirmation
   clearBtn.addEventListener("click", () => {
     if (confirm("Are you sure you want to clear all tasks?")) {
       workHours.forEach(timeObj => {
@@ -271,8 +245,6 @@
       initPlanner();
     }
   });
-
-  // Export tasks to JSON file
   exportBtn.addEventListener("click", () => {
     const tasks = {};
     workHours.forEach(timeObj => {
@@ -288,8 +260,6 @@
     a.click();
     URL.revokeObjectURL(url);
   });
-
-  // Import tasks from JSON file
   importFile.addEventListener("change", (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -316,8 +286,6 @@
     };
     reader.readAsText(file);
   });
-
-  // Dark mode toggle, persist in localStorage
   function applyDarkMode(dark) {
     if (dark) {
       document.body.classList.add("dark");
@@ -327,26 +295,19 @@
       localStorage.setItem("darkMode", "false");
     }
   }
-
   darkModeToggle.addEventListener("click", () => {
     const dark = !document.body.classList.contains("dark");
     applyDarkMode(dark);
   });
-
-  // Initialize dark mode from saved setting
   function initDarkMode() {
     const darkPref = localStorage.getItem("darkMode");
     if (darkPref === "true") {
       applyDarkMode(true);
     }
   }
-
-  // Init everything
   showCurrentDate();
   initPlanner();
   initDarkMode();
-
-  // Refresh planner colors every 15 minutes to update past/present/future classes
   setInterval(initPlanner, 900000);
 </script>
 </body>
